@@ -19,7 +19,7 @@
 <script>
   var data = <%- JSON.stringify(data) %>
 
-  const defaultState = { data, debug: true, plot: { target: (id = 'plot') => { return document.getElementById(id) }, config: undefined } }
+  const defaultState = { data, filters: {region: [], subregion: []}, debug: true, plot: { target: (id = 'plot') => { return document.getElementById(id) }, config: undefined } }
 
   function App (state = defaultState) {
     this.log = output => console.info(output)
@@ -38,29 +38,37 @@
       } 
       return this.state
     }
-    this.updatePlot = (id) => { 
-      let newState = this.updateState( { plot: { ...this.state.plot, ... { config: this.getPlotConfig() } } } ) 
+    this.updatePlot = (id, type) => { 
+      let newState = this.updateState( { plot: { ...this.state.plot, ... { config: this.getPlotConfig(type) } } } ) 
       Plotly.newPlot(this.state.plot.target(id), newState.plot.config)
     }
-    this.getPlotConfig = (type = 'bar', filters) => {
-      const dataTransforms = {
-        bar: () => {
-          return [
+    this.getPlotConfig = (type = 'bar', filters = {region: [], subregion: []}) => {
+      let plotConfig = undefined
+      switch(type) {
+        case 'bar': 
+          let filterForRegion = filters.region.length === 0 ? this.state.data['Global'].regions : null
+            plotConfig = filterForRegion.reduce((acc, curr, currIdx, origArr) => {
+              acc[0].x.push(curr.country)
+              acc[0].y.push(curr.cases)
+              return acc
+            }, [{ x: [], y: [], type: 'bar'}])
+          break
+        default:
+          plotConfig = [
             {
               x: ['giraffes', 'orangutans', 'monkeys'],
               y: [20, 14, 23],
               type: 'bar'
             }
           ]
-        }
       }
-      return dataTransforms[type]()
+      return plotConfig
     }
   }
 
   const app = new App()
   app.updatePlot()
-  app.updatePlot('plot2')
+  app.updatePlot('plot2', 'default')
 
 </script>
 
