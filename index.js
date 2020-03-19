@@ -40,6 +40,7 @@ app.get("/wiki", (req, res) => res.render("coronainfo"));
 app.get("/travel", (req, res) => res.render("travel"));
 app.get("/press", (req, res) => res.render("press"));
 app.get("/email", (req, res) => res.render("email"));
+app.get("/data-discovery", (req, res) => res.render("data-discovery"));
 
 stats.fetchAllData().then(data => {
   app.listen(process.env.PORT || 3000);
