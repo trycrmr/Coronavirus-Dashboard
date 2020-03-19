@@ -8,7 +8,8 @@
   <%- include('./partials/navigation'); -%>
 
     <div class="container-fluid" style="height: 100%; min-height: 100vh; background-color: white;">
-      <div id="tester"></div>
+      <div id="plot"></div>
+      <div id="plot2"></div>
       <div><%- data.lastUpdated %> </div>
     </div>
 
@@ -18,28 +19,49 @@
 <script>
   var data = <%- JSON.stringify(data) %>
 
-  const defaultState = { data, chart: { type: 'bar' } }
+  const defaultState = { data, debug: true, plot: { target: (id = 'plot') => { return document.getElementById(id) }, config: undefined } }
 
   function App (state = defaultState) {
+    this.log = output => console.info(output)
     this.state = state
-    this.updateState = (newState) => { 
-      this.state = { ...this.state, newState } 
+    this.updateState = (newState) => {
+      if(this.state.debug) {
+        this.log('=== Current State ===')
+        this.log(this.state)
+        this.log('=== State update ===')
+        this.log(newState)
+      } 
+      this.state = { ...this.state, ...newState }
+      if(this.state.debug) {
+        this.log('=== New State ===')
+        this.log(this.state)
+      } 
       return this.state
+    }
+    this.updatePlot = (id) => { 
+      let newState = this.updateState( { plot: { ...this.state.plot, ... { config: this.getPlotConfig() } } } ) 
+      Plotly.newPlot(this.state.plot.target(id), newState.plot.config)
+    }
+    this.getPlotConfig = (type = 'bar', filters) => {
+      const dataTransforms = {
+        bar: () => {
+          return [
+            {
+              x: ['giraffes', 'orangutans', 'monkeys'],
+              y: [20, 14, 23],
+              type: 'bar'
+            }
+          ]
+        }
+      }
+      return dataTransforms[type]()
     }
   }
 
   const app = new App()
-  console.log(app.state)
-  // var plotly = [
-  //   {
-  //     x: ['giraffes', 'orangutans', 'monkeys'],
-  //     y: [20, 14, 23],
-  //     type: 'bar'
-  //   }
-  // ];
+  app.updatePlot()
+  app.updatePlot('plot2')
 
-	// TESTER = document.getElementById('tester');
-	// Plotly.newPlot( TESTER, data)
 </script>
 
 </html>
