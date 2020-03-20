@@ -33,12 +33,16 @@ exports.subtractTwoValues = (value1, value2) => {
 };
 
 exports.parseCommas = number => {
-  number = ["", " ", "-"].includes(number) ? "0" : `${number}`;
+  number = ["", " ", "-", "N/A"].includes(number) ? "0" : `${number}`;
   return parseInt(number.replace(/,/g, ""), 10);
 };
 
 exports.writeJSONFile = (region, data) => {
-  if (!data.regions.length) return;
+  if (!!region.regions) {
+    if(!region.regions.length) {
+      return;
+    }
+  };
   try {
     fs.writeFileSync(this.getJSONPath(region), JSON.stringify(data));
   } catch (err) {

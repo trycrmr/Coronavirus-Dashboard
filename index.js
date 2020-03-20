@@ -6,10 +6,15 @@ const stats = require("./fetchData");
 const sync = require("./syncData");
 const time = require("./getTime");
 const globals = require("./globals");
+const graphData = require("./tmp/statistics_graph.json");
 
 // Fetch data every minute.
 cron.schedule("* * * * *", () => {
-  stats.fetchAllData();
+  try {
+    stats.fetchAllData();
+  } catch(error) {
+    console.error(error)
+  }
 });
 
 const getContent = async (res, view) => {
@@ -17,9 +22,10 @@ const getContent = async (res, view) => {
     res.render(view, {
       data: {
         ...data,
-        lastUpdated: time.getTimeSinceLastUpdated(data.lastUpdated),
-        displayOrder: globals.displayOrder
-      }
+        lastUpdated: time.getTimeSinceLastUpdated(data["Global"].lastUpdated),
+        displayOrder: globals.displayOrder,
+        graphs: graphData
+    }
     });
   });
 };
@@ -41,6 +47,10 @@ app.get("/travel", (req, res) => res.render("travel"));
 app.get("/press", (req, res) => res.render("press"));
 app.get("/email", (req, res) => res.render("email"));
 app.get("/data-discovery", (req, res) => getContent(res, "data-discovery"));
+
+
+
+app.get("/graphs", (req, res) => res.render("graphs"));
 
 stats.fetchAllData().then(data => {
   app.listen(process.env.PORT || 3000);
