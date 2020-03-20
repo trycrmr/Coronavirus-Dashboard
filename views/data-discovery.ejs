@@ -9,56 +9,109 @@
 
     <div class="container-fluid" style="height: 100%; min-height: 100vh; background-color: white;">
       <canvas id="myChart"></canvas>
-      <div id="plot"></div>
-      <div id="plot2"></div>
+      <!-- <div id="plot"></div> -->
+      <canvas id="plot2"></canvas>
       <div><%- data.lastUpdated %> </div>
     </div>
 
 <%- include('./partials/scripts'); -%>
 </body>
 
-<script>
-var ctx = document.getElementById('myChart').getContext('2d');
-var myChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
-        datasets: [{
-            label: '# of Votes',
-            data: [12, 19, 3, 5, 2, 3],
-            backgroundColor: [
-                'rgba(255, 99, 132, 0.2)',
-                'rgba(54, 162, 235, 0.2)',
-                'rgba(255, 206, 86, 0.2)',
-                'rgba(75, 192, 192, 0.2)',
-                'rgba(153, 102, 255, 0.2)',
-                'rgba(255, 159, 64, 0.2)'
-            ],
-            borderColor: [
-                'rgba(255, 99, 132, 1)',
-                'rgba(54, 162, 235, 1)',
-                'rgba(255, 206, 86, 1)',
-                'rgba(75, 192, 192, 1)',
-                'rgba(153, 102, 255, 1)',
-                'rgba(255, 159, 64, 1)'
-            ],
-            borderWidth: 1
-        }]
-    },
-    options: {
-        scales: {
-            yAxes: [{
-                ticks: {
-                    beginAtZero: true
-                }
-            }]
-        }
-    }
-});
-</script>
-
+<!-- App with Chart.js -->
 <script>
   var data = <%- JSON.stringify(data) %>
+
+  const defaultState = { data, filters: {region: [], subregion: []}, debug: true, plot: { target: (id = 'myChart') => { return document.getElementById(id) }, config: undefined } }
+
+  function App (state = defaultState) {
+    this.log = output => console.info(output)
+    this.state = state
+    this.updateState = (newState) => {
+      if(this.state.debug) {
+        this.log('=== Current State ===')
+        this.log(this.state)
+        this.log('=== State update ===')
+        this.log(newState)
+      } 
+      this.state = { ...this.state, ...newState }
+      if(this.state.debug) {
+        this.log('=== New State ===')
+        this.log(this.state)
+      } 
+      return this.state
+    }
+    this.updatePlot = (id = 'myChart', type) => { 
+      let newState = this.updateState( { plot: { ...this.state.plot, ... { config: this.getPlotConfig(type) } } } ) 
+      new Chart(document.getElementById(id).getContext('2d'), newState.plot.config)
+      // Plotly.newPlot(this.state.plot.target(id), newState.plot.config)
+    }
+    this.getPlotConfig = (type = 'bar', filters = {region: [], subregion: []}) => {
+      let plotConfig = undefined
+      switch(type) {
+        case 'bar': 
+          let filterForRegion = filters.region.length === 0 ? this.state.data['Global'].regions : null
+            plotConfig = filterForRegion.reduce((acc, curr, currIdx, origArr) => {
+              acc[0].x.push(curr.country)
+              acc[0].y.push(curr.cases)
+              return acc
+            }, [{ x: [], y: [], type: 'bar'}])
+          break
+        default:
+          plotConfig = {
+            type: 'bar',
+            data: {
+              labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+              datasets: [{
+                label: '# of Votes',
+                data: [12, 19, 3, 5, 2, 3]
+              }]
+            },
+            options: {
+              scales: {
+                yAxes: [{
+                  ticks: {
+                    beginAtZero: true
+                  }
+                }]
+              }
+            }
+          }
+      }
+      return plotConfig
+    }
+  }
+
+  const app = new App()
+  // app.updatePlot()
+  app.updatePlot(undefined, 'default')
+  app.updatePlot('plot2', 'default')
+
+  // var ctx = document.getElementById('myChart').getContext('2d');
+  // var myChart = new Chart(ctx, {
+  //     type: 'bar',
+  //     data: {
+  //         labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+  //         datasets: [{
+  //             label: '# of Votes',
+  //             data: [12, 19, 3, 5, 2, 3]
+  //         }]
+  //     },
+  //     options: {
+  //         scales: {
+  //             yAxes: [{
+  //                 ticks: {
+  //                     beginAtZero: true
+  //                 }
+  //             }]
+  //         }
+  //     }
+  // });
+</script>
+<!-- end App with Chart.js -->
+
+<!-- App with Plotly -->
+<!-- <script>
+  var data = <%- /*JSON.stringify(data)*/ %>
 
   const defaultState = { data, filters: {region: [], subregion: []}, debug: true, plot: { target: (id = 'plot') => { return document.getElementById(id) }, config: undefined } }
 
@@ -111,6 +164,7 @@ var myChart = new Chart(ctx, {
   app.updatePlot()
   app.updatePlot('plot2', 'default')
 
-</script>
+</script> -->
+<!-- end App with Plotly -->
 
 </html>
