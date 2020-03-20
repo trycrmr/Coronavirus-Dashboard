@@ -8,6 +8,16 @@
   <%- include('./partials/navigation'); -%>
 
     <div class="container-fluid" style="height: 100%; min-height: 100vh; background-color: white;">
+      <form class="plot-filters">
+        <div class="form-group">
+          <label>Choose a Region:</label>
+          <select class="custom-select region-filter">
+            <% for( let index = 0; index < data.displayOrder.length; index++ ) { %>
+              <option value="<%= data.displayOrder[index] %>"><%= data.displayOrder[index] %></option>
+            <% } %>
+          </select>
+        </div>
+      </form>
       <div id="plot"></div>
       <div id="plot2"></div>
       <div><%- data.lastUpdated %> </div>
@@ -39,15 +49,15 @@
       } 
       return this.state
     }
-    this.updatePlot = (id, type) => { 
-      let newState = this.updateState( { plot: { ...this.state.plot, ... { config: this.getPlotConfig(type) } } } ) 
+    this.updatePlot = (id, type, filters) => { 
+      let newState = this.updateState( { plot: { ...this.state.plot, ... { config: this.getPlotConfig(type, filters) } } } ) 
       Plotly.newPlot(this.state.plot.target(id), newState.plot.config)
     }
-    this.getPlotConfig = (type = 'bar', filters = {region: [], subregion: []}) => {
+    this.getPlotConfig = (type = 'bar', filters = {region: ['Global'], subregion: []}) => {
       let plotConfig = undefined
       switch(type) {
         case 'bar': 
-          let filterForRegion = filters.region.length === 0 ? this.state.data['Global'].regions : null
+          let filterForRegion = this.state.data[filters.region[0]].regions // eventually could be written to handle multiple selections at once
             plotConfig = filterForRegion.reduce((acc, curr, currIdx, origArr) => {
               acc[0].x.push(curr.country)
               acc[0].y.push(curr.cases)
@@ -67,9 +77,11 @@
     }
   }
 
-  const app = new App()
-  app.updatePlot()
-  app.updatePlot('plot2', 'default')
+  $(document).ready(() => {
+    const app = new App()
+    app.updatePlot() // inits default plot
+    document.querySelector('.region-filter').addEventListener('change', event => app.updatePlot(undefined, undefined, {region: [event.target.value]}))
+  })
 
 </script>
 <!-- end App with Plotly -->
