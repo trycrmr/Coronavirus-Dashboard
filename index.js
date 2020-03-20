@@ -8,7 +8,7 @@ const time = require("./getTime");
 const globals = require("./globals");
 const graphData = require("./tmp/statistics_graph.json");
 
-// Fetch data every minute.
+//Fetch data every minute.
 cron.schedule("* * * * *", () => {
   try {
     stats.fetchAllData();
@@ -17,17 +17,19 @@ cron.schedule("* * * * *", () => {
   }
 });
 
-const getContent = async (res, view) => {
-  await sync.gatherAllRegions().then(data => {
+const getContent = (res, view) => {
+  sync.gatherAllRegions().then(data => {
+    console.log(Object.keys(data));
     res.render(view, {
       data: {
         ...data,
-        lastUpdated: time.getTimeSinceLastUpdated(data["Global"].lastUpdated),
-        displayOrder: globals.displayOrder,
-        graphs: graphData
+        lastUpdated: 'a few seconds ago',
+        displayOrder: globals.displayOrder
     }
     });
-  });
+  }).catch(error => {
+    console.error(error)
+  })
 };
 
 const app = express();
@@ -52,7 +54,5 @@ app.get("/data-discovery", (req, res) => getContent(res, "data-discovery"));
 
 app.get("/graphs", (req, res) => res.render("graphs"));
 
-stats.fetchAllData().then(data => {
-  app.listen(process.env.PORT || 3000);
-  console.log("Listening on port: " + 3000);
-});
+app.listen(process.env.PORT || 3000);
+console.log("Listening on port: " + 3000);
