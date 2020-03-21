@@ -16,6 +16,13 @@
               <option value="<%= data.displayOrder[index] %>"><%= data.displayOrder[index] %></option>
             <% } %>
           </select>
+          <select class="custom-select metric-filter">
+            <option value="cases">cases</option>
+            <option value="recovered">recovered</option>
+            <option value="critical">critical</option>
+            <option value="deaths">deaths</option>
+          </select>
+          <!-- ^Hardcoded to match the keys that have integer values in the data values for each region/subregion -->
         </div>
       </form>
       <div id="plot"></div>
@@ -30,39 +37,62 @@
 <script>
   var data = <%- JSON.stringify(data) %>
 
-  const defaultState = { data, filters: {region: [], subregion: []}, debug: true, plot: { target: (id = 'plot') => { return document.getElementById(id) }, config: undefined } }
+  const defaultState = { 
+    data, 
+    filters: {region: ['Global'], subregion: [], metric: ['cases']},
+    debug: true,
+    plot: { target: (id = 'plot') => { return document.getElementById(id) },
+    config: undefined },
+    listeners: []
+  }
 
   function App (state = defaultState) {
     this.log = output => console.info(output)
     this.state = state
     this.updateState = (newState) => {
-      if(this.state.debug) {
+      if(!(JSON.stringify(this.state) === JSON.stringify({ ...this.state, ...newState }))) {
+        if(this.state.debug) {
         this.log('=== Current State ===')
         this.log(this.state)
         this.log('=== State update ===')
         this.log(newState)
-      } 
-      this.state = { ...this.state, ...newState }
-      if(this.state.debug) {
-        this.log('=== New State ===')
-        this.log(this.state)
-      } 
-      return this.state
+      }
+        this.state = { ...this.state, ...newState }
+        if(this.state.debug) {
+          this.log('=== New State ===')
+          this.log(this.state)
+        }
+        this.state.listeners.forEach(thisListener => thisListener());
+        return this.state
+      } else {
+        return this.state
+      }
     }
-    this.updatePlot = (id, type, filters) => { 
-      let newState = this.updateState( { plot: { ...this.state.plot, ... { config: this.getPlotConfig(type, filters) } } } ) 
-      Plotly.newPlot(this.state.plot.target(id), newState.plot.config)
+    this.setFilters = (type, filters) => {
+      switch(type) {
+        case 'region':
+          return this.updateState( { filters: { ...this.state.filters, region: [ filters ] } } )
+        case 'metric':
+          return this.updateState( { filters: { ...this.state.filters, metric: [ filters ] } } )
+        default:
+          return this.state
+      }
     }
-    this.getPlotConfig = (type = 'bar', filters = {region: ['Global'], subregion: []}) => {
+    this.updatePlot = (id, type) => { 
+      let newState = this.updateState( { plot: { ...this.state.plot, ... { config: this.getPlotConfig(type, this.state.filters) } } } ) 
+      this.state.plot.target(id)
+      Plotly.newPlot(this.state.plot.target(id), newState.plot.config).then(() => console.info('Chart updated')).catch(err => console.error(err))
+    }
+    this.getPlotConfig = (type = 'bar', filters = this.state.filters) => {
       let plotConfig = undefined
       switch(type) {
         case 'bar': 
           let filterForRegion = this.state.data[filters.region[0]].regions // eventually could be written to handle multiple selections at once
-            plotConfig = filterForRegion.reduce((acc, curr, currIdx, origArr) => {
-              acc[0].x.push(curr.country)
-              acc[0].y.push(curr.cases)
-              return acc
-            }, [{ x: [], y: [], type: 'bar'}])
+          plotConfig = filterForRegion.reduce((acc, curr, currIdx, origArr) => {
+            acc[0].x.push(curr.country)
+            acc[0].y.push(curr[filters.metric[0]]) // Note that selecting "critical" in Europe currently results in NaN 
+            return acc
+          }, [{ x: [], y: [], type: 'bar'}])
           break
         default:
           plotConfig = [
@@ -79,8 +109,9 @@
 
   $(document).ready(() => {
     const app = new App()
-    app.updatePlot() // inits default plot
-    document.querySelector('.region-filter').addEventListener('change', event => app.updatePlot(undefined, undefined, {region: [event.target.value]}))
+    app.updateState({ listeners: [...app.state.listeners, ...[ () => app.updatePlot('plot') ]] } )
+    document.querySelector('.region-filter').addEventListener('input', event => app.setFilters('region', event.target.value))
+    document.querySelector('.metric-filter').addEventListener('input', event => app.setFilters('metric', event.target.value))
   })
 
 </script>
