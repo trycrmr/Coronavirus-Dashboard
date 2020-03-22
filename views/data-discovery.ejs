@@ -10,17 +10,18 @@
     <div class="container-fluid" style="height: 100%; min-height: 100vh; background-color: white;">
       <form class="plot-filters">
         <div class="form-group">
-          <label>Choose a Region:</label>
+          <label>Choose a region:</label>
           <select class="custom-select region-filter">
             <% for( let index = 0; index < data.displayOrder.length; index++ ) { %>
               <option value="<%= data.displayOrder[index] %>"><%= data.displayOrder[index] %></option>
             <% } %>
           </select>
-          <select class="custom-select metric-filter">
-            <option value="cases">cases</option>
-            <option value="recovered">recovered</option>
-            <option value="critical">critical</option>
-            <option value="deaths">deaths</option>
+          <label>Choose a few metrics:</label>
+          <select class="custom-select metric-filter" multiple="true">
+            <option value="cases">Cases</option>
+            <option value="recovered">Recovered</option>
+            <option value="critical">Critical</option>
+            <option value="deaths">Deaths</option>
           </select>
           <!-- ^Hardcoded to match the keys that have integer values in the data values for each region/subregion -->
         </div>
@@ -69,33 +70,39 @@
       }
     }
     this.setFilters = (type, filters) => {
+      console.info(filters)
       switch(type) {
         case 'region':
           return this.updateState( { filters: { ...this.state.filters, region: [ filters ] } } )
         case 'metric':
-          return this.updateState( { filters: { ...this.state.filters, metric: [ filters ] } } )
+          return this.updateState( { filters: { ...this.state.filters, metric: [ ...filters ] } } )
         default:
           return this.state
       }
     }
     this.updatePlot = (id, type) => { 
-      let newState = this.updateState( { plot: { ...this.state.plot, ... { config: this.getPlotConfig(type, this.state.filters) } } } ) 
+      let thisPlotConfig = this.getPlotConfig(type, this.state.filters)
+      let newState = this.updateState( { plot: { ...this.state.plot, ... { config: { data: thisPlotConfig[0], layout: thisPlotConfig[1]} } } } ) 
       this.state.plot.target(id)
-      Plotly.newPlot(this.state.plot.target(id), newState.plot.config).then(() => console.info('Chart updated')).catch(err => console.error(err))
+      Plotly.newPlot(this.state.plot.target(id), newState.plot.config.data, newState.plot.config.layout).then(() => console.info('Chart updated')).catch(err => console.error(err)) // Handle this error some other way later
     }
-    this.getPlotConfig = (type = 'bar', filters = this.state.filters) => {
-      let plotConfig = undefined
+    this.getPlotConfig = (type = 'bar', filters = this.state.filters, plotLayout = undefined) => {
+      if(this.state.filters.metric.length > 1) plotLayout = { barmode: 'group' }
+      let plotData = undefined
       switch(type) {
         case 'bar': 
           let filterForRegion = this.state.data[filters.region[0]].regions // eventually could be written to handle multiple selections at once
-          plotConfig = filterForRegion.reduce((acc, curr, currIdx, origArr) => {
-            acc[0].x.push(curr.country)
-            acc[0].y.push(curr[filters.metric[0]]) // Note that selecting "critical" in Europe currently results in NaN 
-            return acc
-          }, [{ x: [], y: [], type: 'bar'}])
+          plotData = this.state.filters.metric.map(thisMetric => {
+            return filterForRegion.reduce((acc, curr) => {
+              if(!acc.name) acc.name = thisMetric 
+              acc.x.push(curr.country) // 'country' is the key for whatever the location is called (region, country, subregion, etc.)
+              acc.y.push(curr[thisMetric]) // Note that selecting "critical" in Europe & Latin America currently results in NaN. Idk if this is by design or a data quality issue. 
+              return acc
+            }, { x: [], y: [], name: undefined, type: 'bar'})
+          })
           break
         default:
-          plotConfig = [
+          plotData = [
             {
               x: ['giraffes', 'orangutans', 'monkeys'],
               y: [20, 14, 23],
@@ -103,7 +110,8 @@
             }
           ]
       }
-      return plotConfig
+      console.info(plotData, plotLayout)
+      return [plotData, plotLayout]
     }
   }
 
@@ -111,7 +119,7 @@
     const app = new App()
     app.updateState({ listeners: [...app.state.listeners, ...[ () => app.updatePlot('plot') ]] } )
     document.querySelector('.region-filter').addEventListener('input', event => app.setFilters('region', event.target.value))
-    document.querySelector('.metric-filter').addEventListener('input', event => app.setFilters('metric', event.target.value))
+    document.querySelector('.metric-filter').addEventListener('input', event => app.setFilters('metric', [...event.target.options].filter(o => o.selected).map(o => o.value)))
   })
 
 </script>
