@@ -7,7 +7,7 @@
 <body>
   <%- include('./partials/navigation'); -%>
 
-    <div class="container-fluid" style="height: 100%; min-height: 100vh; background-color: white;">
+    <div class="container-fluid" style="background-color: white;">
       <form class="plot-filters">
         <div class="form-group">
           <label>Choose a region:</label>
@@ -27,7 +27,6 @@
         </div>
       </form>
       <div id="plot"></div>
-      <div id="plot2"></div>
       <div><%- data.lastUpdated %> </div>
     </div>
 
@@ -84,10 +83,21 @@
       let thisPlotConfig = this.getPlotConfig(type, this.state.filters)
       let newState = this.updateState( { plot: { ...this.state.plot, ... { config: { data: thisPlotConfig[0], layout: thisPlotConfig[1]} } } } ) 
       this.state.plot.target(id)
-      Plotly.newPlot(this.state.plot.target(id), newState.plot.config.data, newState.plot.config.layout).then(() => console.info('Chart updated')).catch(err => console.error(err)) // Handle this error some other way later
+      Plotly.newPlot(this.state.plot.target(id), newState.plot.config.data, newState.plot.config.layout, { responsive: true }).then(() => console.info('Chart updated')).catch(err => console.error(err)) // Handle this error some other way later
     }
     this.getPlotConfig = (type = 'bar', filters = this.state.filters, plotLayout = undefined) => {
       plotLayout = { title: `Count of ${[filters.metric.slice(0, -1).join(', '), filters.metric.slice(-1)[0]].join(filters.metric.length < 2 ? '' : ' and ')} in ${filters.region[0]}`} // https://stackoverflow.com/a/16251861/5935694
+      plotLayout = { 
+        ...plotLayout, 
+        autosize: false, 
+        width: parseFloat(getComputedStyle(this.state.plot.target()).width), 
+        // height needs to be set dynamically based on the number of items on the x-axis to allow it to dynamically extend vertically with an unobtrusive distance between ticks
+        yaxis: { 
+          automargin: true, 
+          tickfont: { size: parseFloat(getComputedStyle(this.state.plot.target()).fontSize) }, 
+          autorange: 'reversed' 
+        }
+      }
       if(this.state.filters.metric.length > 1) plotLayout = { ...plotLayout, barmode: 'group'  }
       let plotData = undefined
       switch(type) {
@@ -96,22 +106,37 @@
           plotData = this.state.filters.metric.map(thisMetric => {
             return filterForRegion.reduce((acc, curr) => {
               if(!acc.name) acc.name = thisMetric 
-              acc.x.push(curr.country) // 'country' is the key for whatever the location is called (region, country, subregion, etc.)
-              acc.y.push(curr[thisMetric]) // Note that selecting "critical" in Europe & Latin America currently results in NaN. Idk if this is by design or a data quality issue. 
+              acc.x.push(curr[thisMetric]) // Note that selecting "critical" in Europe & Latin America currently results in NaN. Idk if this is by design or a data quality issue. 
+              acc.y.push(curr.country) // 'country' is the key for whatever the location is called (region, country, subregion, etc.)
               return acc
-            }, { x: [], y: [], name: undefined, type: 'bar'})
+            }, { x: [], y: [], name: undefined, type: 'bar', orientation: 'h' })
           })
+          plotLayout = { ...plotLayout, 
+            ...{ 
+              height: parseFloat(getComputedStyle(this.state.plot.target()).fontSize) * plotData[0].y.length * 2, // dynamically set the height of the target div based on the amount of data to be displayed. This enables dynamically sizing the graph vertically to, hopefully, a comfortable viewing experience. Multiplying the fontsize by two seems to be the sweet spot where no labels are hidden by each other and all bars show ¯\_(ツ)_/¯
+              xaxis: { // puts the x-axis on the top of the page so the user can see the scale when the page loads and as they adjust the filters
+                ...plotLayout.xaxis,
+                mirror: 'allticks',
+                side: 'top',
+                fixedrange: true, // disables zoom; It can be disorienting and makes scrolling more difficult on mobile
+                showspikes: true // on hover, a dotted line will track to either axis and display the labels
+              },
+              yaxis: { ...plotLayout.yaxis,
+                fixedrange: true,
+                showspikes: true
+              }
+            }  
+          }
           break
         default:
           plotData = [
             {
-              x: ['giraffes', 'orangutans', 'monkeys'],
-              y: [20, 14, 23],
+              x: ['oops', 'something', 'went', 'wrong'],
+              y: [20, 14, 23, 12],
               type: 'bar'
             }
           ]
       }
-      console.info(plotData, plotLayout)
       return [plotData, plotLayout]
     }
   }
