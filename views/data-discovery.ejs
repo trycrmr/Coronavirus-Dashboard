@@ -3,42 +3,66 @@
 
 <%- include('./partials/head'); -%>
 
-
 <body>
   <%- include('./partials/navigation'); -%>
 
-    <div class="container-fluid" style="background-color: white;">
+<style>
+.btn-metric {
+  font-weight: bolder;
+  color: var(--paleGray);
+  border-radius: 0.25em;
+}
+.btn-metric:focus {
+  background: #435174;
+  color: var(--paleGray);
+}
+.btn-metric:active {
+  background: #435174;
+  color: var(--paleGray);
+}
+.btn-metric:focus-within {
+  background: #435174;
+  color: var(--paleGray);
+}
+.btn-metric:hover {
+  background: #435174;
+  color: var(--paleGray);
+}
+.selectedMetric {
+  border: 0.1em solid var(--paleGray);
+}
+</style>
+
+    <div class="container-fluid">
       <form class="plot-filters">
         <div class="form-group">
-          <label>Choose a region:</label>
-          <div class="btn-group btn-group-toggle region-filter-btns" data-toggle="buttons">
-            <label class="btn btn-dark active">
-              <input value="Global" type="radio" name="options" autocomplete="off" checked> Global
-            </label>
-            <% for( let index = 1; index < data.displayOrder.length; index++ ) { %>
-              <label class="btn btn-dark">
-                <input value="<%= data.displayOrder[index] %>" type="radio" name="options" autocomplete="off"> <%= data.displayOrder[index] %>
-              </label>
-            <% } %>
+          <div class="dropdown">
+            <button class="btn dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="width: 100%;">
+              Choose a region
+            </button>
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton" style="width: 100%;">
+              <% for( let index = 0; index < data.displayOrder.length; index++ ) { %>
+                <a class="dropdown-item region-filter" href="#" value="<%= data.displayOrder[index] %>"><%= data.displayOrder[index] %></a>
+              <% } %>
+            </div>
           </div>
         </div>
         <div class="form-group">
-          <label>Choose a few metrics:</label>
-          <div class="btn-group btn-group-toggle metric-filter-btns" data-toggle="buttons">
-            <label class="btn btn-dark active">
-              <input type="checkbox" value="cases" name="metric" id="metric" autocomplete="off" checked> Cases
-            </label>
-            <label class="btn btn-dark">
-              <input type="checkbox" value="recovered" name="metric" id="metric" autocomplete="off"> Recovered
-            </label>
-            <label class="btn btn-dark">
-              <input type="checkbox" value="critical" name="metric" id="metric" autocomplete="off"> Critical
-            </label>
-            <label class="btn btn-dark">
-              <input type="checkbox" value="deaths" name="metric" id="metric" autocomplete="off"> Deaths
-            </label>
-          </div>
-          <!-- ^Hardcoded to match the keys that have integer values in the data values for each region/subregion -->
+            <div class="btn-group btn-group-toggle metric-filter-btns" data-toggle="buttons" style="width: 100%;">
+              <label class="btn btn-metric cases active selectedMetric">
+                <input type="checkbox" value="cases" name="metric" id="metric" autocomplete="off" checked> Cases
+              </label>
+              <label class="btn btn-metric recovered">
+                <input type="checkbox" value="recovered" name="metric" id="metric" autocomplete="off"> Recovered
+              </label>
+              <label class="btn btn-metric critical">
+                <input type="checkbox" value="critical" name="metric" id="metric" autocomplete="off"> Critical
+              </label>
+              <label class="btn btn-metric deaths">
+                <input type="checkbox" value="deaths" name="metric" id="metric" autocomplete="off"> Deaths
+              </label>
+            </div>
+            <!-- ^Hardcoded to match the keys that have integer values in the data values for each region/subregion -->
         </div>
       </form>
       <div id="plot"></div>
@@ -158,11 +182,19 @@
   $(document).ready(() => {
     const app = new App()
     app.updateState({ listeners: [...app.state.listeners, ...[ () => app.updatePlot('plot') ]] } )
-    document.querySelector('.region-filter-btns').addEventListener('click', event => event.target.value ? app.setFilters('region', event.target.value) : undefined) 
+    document.querySelectorAll('.region-filter').forEach(thisRegion => thisRegion.addEventListener('click', event => app.setFilters('region', event.target.text)))
     document.querySelector('.metric-filter-btns').addEventListener('click', event => {
+      console.info(event.target.value)
       if(!event.target.value) return undefined
-      if(event.target.checked) app.setFilters('metric', [ ...app.state.filters.metric, event.target.value ])
-      if(!event.target.checked) app.setFilters('metric', app.state.filters.metric.filter( metric => !(metric === event.target.value) ))
+      if(event.target.checked && !(app.state.filters.metric.includes(event.target.value))) {
+        $(`label.${event.target.value}`).addClass('selectedMetric')
+        app.setFilters('metric', [ ...app.state.filters.metric, event.target.value ])
+      } else if(!event.target.checked && app.state.filters.metric.length > 1) {
+        $(`label.${event.target.value}`).removeClass('selectedMetric')
+        app.setFilters('metric', app.state.filters.metric.filter( metric => metric !== event.target.value ))
+      } else {
+        return undefined
+      }
     })
   })
 
